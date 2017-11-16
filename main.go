@@ -51,6 +51,16 @@ func main() {
 	proxies := []*httputil.ReverseProxy{}
 	proxyToUrls := strings.Split(proxyToUrlsCommaSeparated, ",")
 
+	if len(proxyToUrls) == 0 {
+		log.Printf("no proxyToUrl set")
+		return
+	}
+
+	if len(domains) == 0 {
+		log.Printf("no domains set")
+		return
+	}
+
 	if len(domains) != len(proxyToUrls) {
 		log.Printf("domains and proxies are uneven")
 		return
