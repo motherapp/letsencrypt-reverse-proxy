@@ -1,0 +1,15 @@
+services:
+   proxy:
+      image: hink/letsencrypt-reverse-proxy
+      ports:
+      - '80:80'
+      - '443:443'
+      links:
+      - homepage
+      environment:
+        DOMAINS: 'example.com,www.example.com'
+        PROXY_TO_URLS: 'http://homepage:80,http://homepage:80'
+      volumes:
+      - /tmp:/tmp
+  homepage:
+    image: example/homepage
