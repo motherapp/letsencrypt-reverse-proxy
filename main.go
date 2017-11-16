@@ -77,12 +77,15 @@ func main() {
 
 	handler := func(resp http.ResponseWriter, req *http.Request) {
 		trimmedAddr := strings.Trim(req.Host, ":"+port)
+		log.Printf("request url %+v, %v", trimmedAddr, webDomain)
 		for index, url := range domains {
 			if trimmedAddr != url {
 				continue
 			}
 			proxies[index].ServeHTTP(resp, req)
+			return
 		}
+		log.Printf("failed finding domain %v", trimmedAddr)
 		return
 	}
 
