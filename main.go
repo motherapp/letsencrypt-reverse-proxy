@@ -46,7 +46,7 @@ var contactEmail = func() string {
 
 func main() {
 	domains := strings.Split(webDomain, ",")
-	tlsConfig := GetTLS(domains...)
+	tlsConfig := getTLS(domains...)
 
 	proxies := []*httputil.ReverseProxy{}
 	proxyToUrls := strings.Split(proxyToUrlsCommaSeparated, ",")
@@ -95,6 +95,7 @@ func main() {
 		TLSConfig: tlsConfig,
 	}
 
+	go http.ListenAndServe(":80", http.HandlerFunc(redirect))
 	err := httpServer.ListenAndServeTLS("", "")
 	if err != nil {
 		log.Printf(" %+v", err)
@@ -102,7 +103,18 @@ func main() {
 	}
 }
 
-func GetTLS(hosts ...string) *tls.Config {
+func redirect(w http.ResponseWriter, req *http.Request) {
+	// remove/add not default ports from req.Host
+	target := "https://" + req.Host + req.URL.Path
+	if len(req.URL.RawQuery) > 0 {
+		target += "?" + req.URL.RawQuery
+	}
+	log.Printf("redirect to: %s", target)
+	http.Redirect(w, req, target,
+		http.StatusTemporaryRedirect)
+}
+
+func getTLS(hosts ...string) *tls.Config {
 	manager := autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
 		Cache:      cache,
