@@ -13,7 +13,7 @@ import (
 
 const cache autocert.DirCache = "/tmp" // path to cert store folder with right priviliges
 var webDomain = func() string {
-	port, ok := os.LookupEnv("DOMAIN")
+	port, ok := os.LookupEnv("DOMAINS")
 	if !ok {
 		return "example.com,www.example.com"
 	}
@@ -39,7 +39,7 @@ var port = func() string {
 var contactEmail = func() string {
 	contactEmail := os.Getenv("DOMAIN_CONTACT_EMAIL")
 	if contactEmail == "" {
-		contactEmail = "info@einride.eu"
+		contactEmail = "info@example.com"
 	}
 	return contactEmail
 }()
