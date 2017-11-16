@@ -21,7 +21,7 @@ var webDomain = func() string {
 }()
 
 var proxyToUrlsCommaSeparated = func() string {
-	port, ok := os.LookupEnv("PROXY_TO_URL")
+	port, ok := os.LookupEnv("PROXY_TO_URLS")
 	if !ok {
 		return "serverIWantToProxyTo.example.com:443,other2.example.com:443"
 	}
