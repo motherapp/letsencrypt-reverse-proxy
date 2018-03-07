@@ -1,6 +1,6 @@
 FROM golang:1.9
 
-WORKDIR /go/src/github.com/einride/pod-supervisor/server
+WORKDIR /go/src/github.com/ohlsont/letsencrypt-reverse-proxy
 
 RUN go get github.com/golang/dep/...
 COPY Gopkg.toml Gopkg.lock ./
