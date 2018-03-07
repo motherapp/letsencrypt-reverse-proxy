@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"fmt"
 )
 
 const cache autocert.DirCache = "/tmp" // path to cert store folder with right priviliges
@@ -46,7 +47,7 @@ var contactEmail = func() string {
 
 func main() {
 	domains := strings.Split(webDomain, ",")
-	tlsConfig := getTLS(domains...)
+	manager, tlsConfig := getTLS(domains...)
 
 	proxies := []*httputil.ReverseProxy{}
 	proxyToUrls := strings.Split(proxyToUrlsCommaSeparated, ",")
@@ -89,13 +90,18 @@ func main() {
 		return
 	}
 
+	go func() {
+		serveError := http.ListenAndServe(":80", manager.HTTPHandler(redirecter{}))
+		if serveError != nil {
+			fmt.Errorf("got serve error when setting up port 80 listner %v", serveError)
+		}
+	}()
+
 	httpServer := http.Server{
 		Addr:      ":" + port,
 		Handler:   http.HandlerFunc(handler),
 		TLSConfig: tlsConfig,
 	}
-
-	go http.ListenAndServe(":80", http.HandlerFunc(redirect))
 	err := httpServer.ListenAndServeTLS("", "")
 	if err != nil {
 		log.Printf(" %+v", err)
@@ -103,18 +109,7 @@ func main() {
 	}
 }
 
-func redirect(w http.ResponseWriter, req *http.Request) {
-	// remove/add not default ports from req.Host
-	target := "https://" + req.Host + req.URL.Path
-	if len(req.URL.RawQuery) > 0 {
-		target += "?" + req.URL.RawQuery
-	}
-	log.Printf("redirect to: %s", target)
-	http.Redirect(w, req, target,
-		http.StatusTemporaryRedirect)
-}
-
-func getTLS(hosts ...string) *tls.Config {
+func getTLS(hosts ...string) (autocert.Manager, *tls.Config) {
 	manager := autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
 		Cache:      cache,
@@ -122,5 +117,19 @@ func getTLS(hosts ...string) *tls.Config {
 		Email:      contactEmail,
 	}
 	tlsConfig := &tls.Config{GetCertificate: manager.GetCertificate}
-	return tlsConfig
+	return manager, tlsConfig
+}
+
+type redirecter struct{}
+
+func (r redirecter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	// remove/add not default ports from req.Host
+	target := "https://" + req.Host + req.URL.Path
+	if len(req.URL.RawQuery) > 0 {
+		target += "?" + req.URL.RawQuery
+	}
+
+	http.Redirect(w, req, target,
+		// see @andreiavrammsd comment: often 307 > 301
+		http.StatusTemporaryRedirect)
 }
