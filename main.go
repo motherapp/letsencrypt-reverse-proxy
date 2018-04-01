@@ -94,13 +94,6 @@ func main() {
 		return
 	}
 
-	go func() {
-		serveError := http.ListenAndServe(":80", manager.HTTPHandler(redirecter{}))
-		if serveError != nil {
-			logger.Printf("got serve error when setting up port 80 listner %v", serveError)
-		}
-	}()
-
 	httpServer := http.Server{
 		Addr:         ":" + port,
 		Handler:      http.HandlerFunc(handler),
@@ -111,8 +104,15 @@ func main() {
 		IdleTimeout:  15 * time.Second,
 	}
 
-	logger.Println("run manager listner")
-	err := httpServer.Serve(manager.Listener())
+	go func() {
+		serveError := http.ListenAndServe(":80", manager.HTTPHandler(redirecter{}))
+		if serveError != nil {
+			logger.Printf("got serve error when setting up port 80 listner %v", serveError)
+		}
+	}()
+
+	logger.Println("run manager listner tls")
+	err := httpServer.ListenAndServeTLS("", "")
 	if err != nil {
 		logger.Printf("error: %+v", err)
 		return
