@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"fmt"
+	"time"
 )
 
 const cache autocert.DirCache = "/tmp" // path to cert store folder with right priviliges
@@ -46,6 +46,10 @@ var contactEmail = func() string {
 }()
 
 func main() {
+	logger := log.New(os.Stdout, "http: ", log.LstdFlags)
+	logger.SetFlags(log.LstdFlags | log.Lshortfile)
+	logger.Println("started proxy")
+
 	domains := strings.Split(webDomain, ",")
 	manager, tlsConfig := getTLS(domains...)
 
@@ -53,24 +57,24 @@ func main() {
 	proxyToUrls := strings.Split(proxyToUrlsCommaSeparated, ",")
 
 	if len(proxyToUrls) == 0 {
-		log.Printf("no proxyToUrl set")
+		logger.Printf("no proxyToUrl set")
 		return
 	}
 
 	if len(domains) == 0 {
-		log.Printf("no domains set")
+		logger.Printf("no domains set")
 		return
 	}
 
 	if len(domains) != len(proxyToUrls) {
-		log.Printf("domains and proxies are uneven")
+		logger.Printf("domains and proxies are uneven")
 		return
 	}
 
 	for _, proxyToUrl := range proxyToUrls {
 		proxyUrl, err := url.Parse(proxyToUrl)
 		if err != nil {
-			log.Printf("bad address %+v, %+v", err, proxyToUrlsCommaSeparated)
+			logger.Printf("bad address %+v, %+v", err, proxyToUrlsCommaSeparated)
 			return
 		}
 		proxies = append(proxies, httputil.NewSingleHostReverseProxy(proxyUrl))
@@ -78,7 +82,7 @@ func main() {
 
 	handler := func(resp http.ResponseWriter, req *http.Request) {
 		trimmedAddr := strings.Trim(req.Host, ":"+port)
-		log.Printf("request url %+v, %v", trimmedAddr, webDomain)
+		logger.Printf("request url %+v, %v", trimmedAddr, webDomain)
 		for index, url := range domains {
 			if trimmedAddr != url {
 				continue
@@ -86,23 +90,33 @@ func main() {
 			proxies[index].ServeHTTP(resp, req)
 			return
 		}
-		log.Printf("failed finding domain %v", trimmedAddr)
+		logger.Printf("failed finding domain %v", trimmedAddr)
 		return
 	}
 
 	go func() {
 		serveError := http.ListenAndServe(":80", manager.HTTPHandler(redirecter{}))
 		if serveError != nil {
-			fmt.Errorf("got serve error when setting up port 80 listner %v", serveError)
+			logger.Printf("got serve error when setting up port 80 listner %v", serveError)
 		}
 	}()
 
 	httpServer := http.Server{
-		Addr:      ":" + port,
-		Handler:   http.HandlerFunc(handler),
-		TLSConfig: tlsConfig,
+		Addr:         ":" + port,
+		Handler:      http.HandlerFunc(handler),
+		TLSConfig:    tlsConfig,
+		ErrorLog:     logger,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  15 * time.Second,
 	}
-	log.Fatal(httpServer.Serve(manager.Listener()))
+
+	logger.Println("run manager listner")
+	err := httpServer.Serve(manager.Listener())
+	if err != nil {
+		logger.Printf("error: %+v", err)
+		return
+	}
 }
 
 func getTLS(hosts ...string) (*autocert.Manager, *tls.Config) {
