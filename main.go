@@ -102,22 +102,20 @@ func main() {
 		Handler:   http.HandlerFunc(handler),
 		TLSConfig: tlsConfig,
 	}
-	err := httpServer.ListenAndServeTLS("", "")
-	if err != nil {
-		log.Printf(" %+v", err)
-		return
-	}
+	log.Fatal(httpServer.Serve(manager.Listener()))
 }
 
-func getTLS(hosts ...string) (autocert.Manager, *tls.Config) {
+func getTLS(hosts ...string) (*autocert.Manager, *tls.Config) {
 	manager := autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
 		Cache:      cache,
 		HostPolicy: autocert.HostWhitelist(hosts...),
 		Email:      contactEmail,
 	}
-	tlsConfig := &tls.Config{GetCertificate: manager.GetCertificate}
-	return manager, tlsConfig
+	tlsConfig := &tls.Config{
+		GetCertificate: manager.GetCertificate,
+	}
+	return &manager, tlsConfig
 }
 
 type redirecter struct{}
