@@ -77,12 +77,18 @@ func main() {
 			logger.Printf("bad address %+v, %+v", err, proxyToUrlsCommaSeparated)
 			return
 		}
-		proxies = append(proxies, httputil.NewSingleHostReverseProxy(proxyUrl))
+	    proxy := httputil.NewSingleHostReverseProxy(proxyUrl)
+	    director := proxy.Director
+	    proxy.Director = func(r *http.Request) {
+	        director(r)
+	        r.Host = proxyUrl.Host
+	    }		
+		proxies = append(proxies, proxy)
 	}
 
 	handler := func(resp http.ResponseWriter, req *http.Request) {
 		trimmedAddr := strings.Trim(req.Host, ":"+port)
-		logger.Printf("request url %+v, %v", trimmedAddr, webDomain)
+		logger.Printf("request url %+v, %v", trimmedAddr, req.URL.Path)
 		for index, url := range domains {
 			if trimmedAddr != url {
 				continue
